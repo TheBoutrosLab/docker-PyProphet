@@ -31,6 +31,6 @@ jobs:
       packages: write
     steps:
       - uses: TheBoutrosLab/tool-Docker-action@v2
-      # Uncomment if you expect to use non-SemVer release tags
-      # with:
-      #   non-semver-tags: true
+        with:
+          # The Bioconda PyProphet 3.0.15 recipe excludes ARM64 builds.
+          platforms: linux/amd64
