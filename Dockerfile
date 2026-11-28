@@ -7,19 +7,27 @@ FROM condaforge/miniforge3:${MINIFORGE_VERSION} AS builder
 ARG CONDA_ENV_PATH
 ARG PYPROPHET_VERSION=3.0.15
 
+# SciPy 1.18 returns floating-point ranks that PyProphet 3.0.15 uses as indices.
+# Keep integer ranks for its monotone local-FDR calculation.
 # Install PyProphet and its dependencies in a dedicated environment.
 RUN mamba create -qy -p "${CONDA_ENV_PATH}" \
     --override-channels --strict-channel-priority \
     -c conda-forge -c bioconda \
-    "pyprophet=${PYPROPHET_VERSION}" && \
+    "pyprophet=${PYPROPHET_VERSION}" "scipy<1.18" && \
     mamba clean -afy
 
-# Deploy the environment into the lab's standard runtime image.
+COPY src/prepare_image.py /usr/local/share/pyprophet/prepare_image.py
+
+# Install the extension and configure PyProphet to use its shared directory.
+RUN "${CONDA_ENV_PATH}/bin/python" /usr/local/share/pyprophet/prepare_image.py
+
+# Deploy the environment and read-only extension cache into the runtime image.
 FROM ubuntu:${UBUNTU_VERSION} AS final
 
 ARG CONDA_ENV_PATH
 
 COPY --from=builder "${CONDA_ENV_PATH}" "${CONDA_ENV_PATH}"
+COPY --from=builder /opt/duckdb/extensions /opt/duckdb/extensions
 
 ENV CONDA_ENV_PATH="${CONDA_ENV_PATH}" \
     PATH="${CONDA_ENV_PATH}/bin:${PATH}"

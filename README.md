@@ -13,8 +13,32 @@ extraction and TRIC alignment run in separate images.
 | Component | Version |
 |-----------|---------|
 | PyProphet | 3.0.15 |
+| SciPy | <1.18 |
 | Miniforge | 26.1.1-2 |
 | Ubuntu | 24.04 |
+
+SciPy is constrained below 1.18 because PyProphet 3.0.15 uses integer ranks
+from `scipy.stats.rankdata` as array indices during monotone local-FDR
+estimation. SciPy 1.18 returns floating-point ranks and causes an `IndexError`.
+
+## Bundled DuckDB SQLite extension
+
+The image installs `sqlite_scanner` into `/opt/duckdb/extensions` during the build,
+using the DuckDB version and platform in the PyProphet environment. The cache is
+copied into the final image and made read-only and readable by every runtime
+UID/GID.
+
+The build helper `src/prepare_image.py` installs the extension and patches
+PyProphet's `duckdb.connect()` and `duckdb.connect(":memory:")` calls to use this
+shared cache through `extension_directories`. This source patch is applied only
+inside the image and does not change statistical settings. Review the connection
+calls when upgrading PyProphet.
+
+Extension discovery is independent of runtime username and `HOME`; neither the
+image nor the pipeline needs to override `HOME`. Apptainer execution still needs
+verification on the deployment cluster.
+
+Tracked in [issue #2](https://github.com/TheBoutrosLab/docker-PyProphet/issues/2).
 
 ## Discussions
 
